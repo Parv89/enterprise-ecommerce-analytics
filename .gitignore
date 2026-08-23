@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Production builds
+dist/
+build/
+
+# Database files
+server/dev.db
+server/dev.db-journal
+*.sqlite
+*.db
+
+# Uploads & Temp files
+server/uploads/*
+!server/uploads/.gitkeep
+
+# Environment variables
+.env
+server/.env
+client/.env
+
+# IDE & OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
