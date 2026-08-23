@@ -69,29 +69,33 @@ export const register = async (req: Request, res: Response) => {
 export const login = async (req: Request, res: Response) => {
   try {
     const { email, phone, identifier, password } = req.body;
-    const loginInput = (email || phone || identifier || '').trim();
+    const rawInput = (email || phone || identifier || '').trim();
 
-    if (!loginInput || !password) {
+    if (!rawInput || !password) {
       return res.status(400).json({ success: false, message: 'Email/Phone and password are required.' });
     }
 
-    // Support sign in via Email OR Phone Number
-    const user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: loginInput },
-          { phone: loginInput }
-        ]
+    const digitsOnly = rawInput.replace(/\D/g, '');
+
+    // Fetch all users to match email OR exact phone OR normalized digits
+    const allUsers = await prisma.user.findMany();
+    const user = allUsers.find((u) => {
+      if (u.email.toLowerCase() === rawInput.toLowerCase()) return true;
+      if (u.phone && u.phone.trim() === rawInput) return true;
+      if (digitsOnly.length >= 6 && u.phone) {
+        const uDigits = u.phone.replace(/\D/g, '');
+        if (uDigits.includes(digitsOnly) || digitsOnly.includes(uDigits)) return true;
       }
+      return false;
     });
 
     if (!user) {
-      return res.status(401).json({ success: false, message: 'Invalid email/phone or password.' });
+      return res.status(401).json({ success: false, message: 'Invalid credentials. User not found for this email/phone.' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Invalid email/phone or password.' });
+      return res.status(401).json({ success: false, message: 'Invalid credentials. Password does not match.' });
     }
 
     const token = jwt.sign(
@@ -106,7 +110,7 @@ export const login = async (req: Request, res: Response) => {
         userId: user.id,
         action: 'USER_LOGIN',
         entity: 'User',
-        details: JSON.stringify({ identifier: loginInput, userEmail: user.email })
+        details: JSON.stringify({ rawInput, userEmail: user.email })
       }
     });
 
