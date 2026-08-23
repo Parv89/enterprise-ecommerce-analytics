@@ -4,8 +4,88 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../prismaClient';
 import { AuthRequest } from '../middleware/auth';
 
+// Auto-seed helper for Serverless Environments (Vercel) when DB is fresh
+const ensureDatabaseSeeded = async () => {
+  try {
+    const userCount = await prisma.user.count();
+    if (userCount > 0) return; // Already seeded
+
+    console.log('🌱 Vercel fresh database detected! Auto-seeding default demo accounts...');
+
+    const adminPassword = await bcrypt.hash('Admin@123', 10);
+    const managerPassword = await bcrypt.hash('Manager@123', 10);
+    const customerPassword = await bcrypt.hash('Customer@123', 10);
+
+    const admin = await prisma.user.create({
+      data: {
+        email: 'admin@enterprise.com',
+        password: adminPassword,
+        name: 'Alexander Pierce (Chief Admin)',
+        role: 'ADMIN',
+        phone: '+1 (555) 019-2834',
+        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
+      }
+    });
+
+    const manager = await prisma.user.create({
+      data: {
+        email: 'manager@enterprise.com',
+        password: managerPassword,
+        name: 'Sarah Jenkins (Operations Manager)',
+        role: 'MANAGER',
+        phone: '+1 (555) 018-9921',
+        avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150'
+      }
+    });
+
+    const customer = await prisma.user.create({
+      data: {
+        email: 'customer@enterprise.com',
+        password: customerPassword,
+        name: 'David Vance',
+        role: 'CUSTOMER',
+        phone: '+1 (555) 012-3456',
+        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150'
+      }
+    });
+
+    // Create Categories
+    const catElectronics = await prisma.category.create({
+      data: {
+        name: 'Electronics & Gadgets',
+        slug: 'electronics',
+        description: 'High-performance laptops, smartphones, and pro gear.',
+        image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500'
+      }
+    });
+
+    // Create Sample Product
+    await prisma.product.create({
+      data: {
+        name: 'ApexPro M3 M3-Max Workstation Laptop',
+        slug: 'apexpro-m3-workstation',
+        description: 'Next-generation 16-inch computing power with 64GB Unified Memory.',
+        price: 2499.99,
+        compareAtPrice: 2799.99,
+        stock: 45,
+        sku: 'APX-M3-001',
+        categoryId: catElectronics.id,
+        images: JSON.stringify(['https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800']),
+        isFeatured: true,
+        ratingsAvg: 4.9,
+        ratingsCount: 128
+      }
+    });
+
+    console.log('✅ Vercel database auto-seeding completed successfully!');
+  } catch (err) {
+    console.error('Auto-seed error:', err);
+  }
+};
+
 export const register = async (req: Request, res: Response) => {
   try {
+    await ensureDatabaseSeeded();
     const { email, password, name, phone, role } = req.body;
 
     if (!email || !password || !name) {
@@ -68,6 +148,8 @@ export const register = async (req: Request, res: Response) => {
 
 export const login = async (req: Request, res: Response) => {
   try {
+    await ensureDatabaseSeeded();
+
     const { email, phone, identifier, password } = req.body;
     const rawInput = (email || phone || identifier || '').trim();
 
