@@ -68,20 +68,30 @@ export const register = async (req: Request, res: Response) => {
 
 export const login = async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const { email, phone, identifier, password } = req.body;
+    const loginInput = (email || phone || identifier || '').trim();
 
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: 'Email and password are required.' });
+    if (!loginInput || !password) {
+      return res.status(400).json({ success: false, message: 'Email/Phone and password are required.' });
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    // Support sign in via Email OR Phone Number
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: loginInput },
+          { phone: loginInput }
+        ]
+      }
+    });
+
     if (!user) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials.' });
+      return res.status(401).json({ success: false, message: 'Invalid email/phone or password.' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials.' });
+      return res.status(401).json({ success: false, message: 'Invalid email/phone or password.' });
     }
 
     const token = jwt.sign(
@@ -96,7 +106,7 @@ export const login = async (req: Request, res: Response) => {
         userId: user.id,
         action: 'USER_LOGIN',
         entity: 'User',
-        details: JSON.stringify({ email: user.email })
+        details: JSON.stringify({ identifier: loginInput, userEmail: user.email })
       }
     });
 
