@@ -22,23 +22,25 @@ const FALLBACK_TOP_PRODUCTS: TopProduct[] = [
 export const AnalyticsReports: React.FC = () => {
   const [topProducts, setTopProducts] = useState<TopProduct[]>(FALLBACK_TOP_PRODUCTS);
   const [categoryData, setCategoryData] = useState<any[]>(FALLBACK_CATEGORY_DATA);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const res = await api.get('/analytics/dashboard');
-        if (res.data.success && res.data.topProducts?.length) {
+        if (res.data.success && res.data.topProducts && res.data.topProducts.length > 0) {
           setTopProducts(res.data.topProducts);
-          setCategoryData([
-            { category: 'Electronics & Gadgets', sales: 48900 },
-            { category: 'Audio & Acoustics', sales: 24500 },
-            { category: 'Smart Wearables', sales: 18200 },
-            { category: 'Smart Office', sales: 15400 }
-          ]);
+        } else {
+          setTopProducts(FALLBACK_TOP_PRODUCTS);
+        }
+
+        if (res.data.success && res.data.categoryData && res.data.categoryData.length > 0) {
+          setCategoryData(res.data.categoryData);
+        } else {
+          setCategoryData(FALLBACK_CATEGORY_DATA);
         }
       } catch (err) {
-        console.warn('Using client fallback for Analytics Reports:', err);
+        setTopProducts(FALLBACK_TOP_PRODUCTS);
+        setCategoryData(FALLBACK_CATEGORY_DATA);
       }
     };
     fetchData();
@@ -78,8 +80,8 @@ export const AnalyticsReports: React.FC = () => {
           </div>
         </div>
 
-        <div className="h-72 w-full pt-4">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="w-full min-h-[300px] pt-4">
+          <ResponsiveContainer width="100%" height={280}>
             <BarChart data={categoryData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" strokeOpacity={0.2} />
               <XAxis dataKey="category" stroke="#64748b" tick={{ fontSize: 12 }} />
@@ -112,8 +114,8 @@ export const AnalyticsReports: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-              {topProducts.map((tp, index) => (
-                <tr key={tp.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
+              {(topProducts.length > 0 ? topProducts : FALLBACK_TOP_PRODUCTS).map((tp, index) => (
+                <tr key={tp.id || index} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
                   <td className="p-3 font-bold text-amber-600 dark:text-amber-400">#{index + 1}</td>
                   <td className="p-3 font-bold text-slate-900 dark:text-white">{tp.name}</td>
                   <td className="p-3 font-mono text-slate-600 dark:text-slate-300">{tp.totalUnitsSold} units</td>
